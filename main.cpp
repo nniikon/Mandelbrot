@@ -1,14 +1,17 @@
 #include <SFML/Graphics.hpp>
 #include <immintrin.h>
+#include <thread>
 
 const int WINDOW_WIDTH  = 1920;
 const int WINDOW_HEIGHT = 1080;
+const int N_THREADS = 12;
 
 const int   MAX_ITERATION_DEPTH = 248;
 const float MAX_RADIUS          = 50.0;
 
 void mandelbrot_naive     (sf::Uint8* pixels, float magnifier, float shiftX);
-void mandelbrot_vectorized(sf::Uint8* pixels, float magnifier, float shiftX);
+void mandelbrot_vectorized(sf::Uint8* pixels, float magnifier, float shiftX,
+                           int leftBound, int rightBound);
 
 int main() {
 
@@ -53,7 +56,23 @@ int main() {
             }    
         }
 
-        mandelbrot_vectorized(pixels, scale, shiftX);
+        std::vector<std::thread> threads;
+
+        for (int i = 0; i < N_THREADS; ++i)
+        {
+            threads.emplace_back([&, i]()
+            {
+                int startY = WINDOW_HEIGHT / N_THREADS * i;
+                int endY = WINDOW_HEIGHT / N_THREADS * (i + 1);
+                mandelbrot_vectorized(pixels, scale, shiftX, startY, endY);
+            });
+        }
+
+        for (auto& thread : threads)
+        {
+            thread.join();
+        }
+        
         texture.update(pixels);
 
         window.clear();
@@ -65,6 +84,8 @@ int main() {
 
     return 0;
 }
+
+void mandelbrot(sf::Uint8* pixels, float magnifier, float shiftX);
 
 void mandelbrot_naive(sf::Uint8* pixels, float magnifier, float shiftX)
 {
@@ -127,7 +148,8 @@ void mandelbrot_naive(sf::Uint8* pixels, float magnifier, float shiftX)
 }
 
 
-void mandelbrot_vectorized(sf::Uint8* pixels, float magnifier, float shiftX)
+void mandelbrot_vectorized(sf::Uint8* pixels, float magnifier, float shiftX,
+                           int leftBound, int rightBound)
 {
     const float radius2 = MAX_RADIUS * MAX_RADIUS;
     const float scale = (float)WINDOW_WIDTH / WINDOW_HEIGHT;
@@ -148,9 +170,9 @@ void mandelbrot_vectorized(sf::Uint8* pixels, float magnifier, float shiftX)
 
     __m256 _maxRadius2 = _mm256_set1_ps(radius2);
 
-    float cy = -1.0f * invMagnifier;
+    float cy = -1.0f * invMagnifier + dy * leftBound;
     __m256 _cy = _mm256_set1_ps(cy);
-    for (int screenY = 0; screenY < WINDOW_HEIGHT; ++screenY, cy += dy)
+    for (int screenY = leftBound; screenY < rightBound; ++screenY, cy += dy)
     {
         float cx = shiftX - scale * invMagnifier;
         __m256 _cx = _mm256_set1_ps(cx);
