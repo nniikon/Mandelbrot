@@ -27,9 +27,10 @@ const int N_THREADS = 12;
 const int   MAX_ITERATION_DEPTH = 256;
 const float MAX_RADIUS          = 50.0;
 
-void mandelbrot_naive     (sf::Uint8* pixels, float magnifier, float shiftX);
-void mandelbrot_vectorized(sf::Uint8* pixels, float magnifier, float shiftX);
+void mandelbrot_naive        (sf::Uint8* pixels, float magnifier, float shiftX);
+void mandelbrot_vectorized   (sf::Uint8* pixels, float magnifier, float shiftX);
 void mandelbrot_multithreaded(sf::Uint8* pixels, float magnifier, float shiftX);
+void mandelbrot_unfair       (sf::Uint8* pixels, float magnifier, float shiftX);
 
 MandelbrotGPU mandelbrot_gpu_setup();
 void mandelbrot_gpu(sf::Uint8* pixels, float magnifier, float shiftX);
@@ -53,11 +54,12 @@ static void test_implem(sf::Uint8* pixels, void (*func)(sf::Uint8*, float, float
 
 void test(sf::Uint8* pixels)
 {
-    const int nTests = 150;
-    test_implem(pixels, mandelbrot_naive,         "naive"     ,    nTests);
-    test_implem(pixels, mandelbrot_vectorized,    "vectorized",    nTests);
+    const int nTests = 1000;
+    test_implem(pixels, mandelbrot_unfair,        "unfair",        nTests);
     test_implem(pixels, mandelbrot_multithreaded, "multithreaded", nTests);
     test_implem(pixels, mandelbrot_gpu,           "gpu",           nTests);
+    test_implem(pixels, mandelbrot_naive,         "naive"     ,    nTests);
+    test_implem(pixels, mandelbrot_vectorized,    "vectorized",    nTests);
 }
 
 int main()
@@ -309,6 +311,41 @@ void mandelbrot_multithreaded(sf::Uint8* pixels, float magnifier, float shiftX)
         thread.join();
     }
 }
+
+void mandelbrot_unfair(sf::Uint8* pixels, float magnifier, float shiftX)
+{
+    int coords[] = {0, 295, 365, 421, 466, 503, 540, 577, 613, 658, 714, 784, 1080};
+    //mandelbrot_vectorized_internal(pixels, magnifier, shiftX, 0, 295);
+    //mandelbrot_vectorized_internal(pixels, magnifier, shiftX, 296, 365);
+    //mandelbrot_vectorized_internal(pixels, magnifier, shiftX, 366, 421);
+    //mandelbrot_vectorized_internal(pixels, magnifier, shiftX, 422, 466);
+    //mandelbrot_vectorized_internal(pixels, magnifier, shiftX, 467, 503);
+    //mandelbrot_vectorized_internal(pixels, magnifier, shiftX, 504, 540);
+    //mandelbrot_vectorized_internal(pixels, magnifier, shiftX, 541, 577);
+    //mandelbrot_vectorized_internal(pixels, magnifier, shiftX, 578, 613);
+    //mandelbrot_vectorized_internal(pixels, magnifier, shiftX, 614, 658);
+    //mandelbrot_vectorized_internal(pixels, magnifier, shiftX, 659, 714);
+    //mandelbrot_vectorized_internal(pixels, magnifier, shiftX, 715, 784);
+    //mandelbrot_vectorized_internal(pixels, magnifier, shiftX, 785, 1080);
+
+    std::vector<std::thread> threads;
+
+    for (int j = 0; j < N_THREADS; j++)
+    {
+        threads.emplace_back([&, j]()
+        {
+            int startY = coords[j];
+            int endY   = coords[j + 1] - 1;
+            mandelbrot_vectorized_internal(pixels, magnifier, shiftX, startY, endY);
+        });
+    }
+
+    for (auto& thread : threads)
+    {
+        thread.join();
+    }
+}
+
 
 #include <CL/opencl.hpp>
 
