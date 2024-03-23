@@ -1,3 +1,5 @@
+![](./media/mandelbrot.png)
+
 # Mandelbrot Set
 
 The Mandelbrot Set can be defined using this simple pseudocode algorithm.
@@ -19,7 +21,7 @@ for each pixel (Px, Py) on the screen do
 
 ## System
 
-We're using an R5 5600H with an integrated GPU for the tests.
+I'm using an R5 5600H with an integrated GPU for the tests.
 
 Clangd with the -O3 flag is used as a compiler.
 
@@ -40,6 +42,8 @@ For example, if you have 1920*1080 CPUs, they can simultaneously calculate each 
 Modern CPUs have so-called SIMD instructions (Single Instruction Multiple Data), and those can be very handy since they can perform multiple operations at once.
 
 My CPU supports AVX2 instructions, meaning that we can perform up to 8 floating-point multiplications at once.
+
+![](./media/regs.png)
 
 Let's rewrite our code and test it again.
 
