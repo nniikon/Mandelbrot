@@ -63,6 +63,8 @@ As far as I know, we have hit the limit of single-thread speed, so let's add mor
 
 My CPU has 12 threads. We will use them all. We are going to split our screen horizontally into 12 pieces and calculate them in parallel.
 
+![](./media/mandelbrot1.png)
+
 The resulting time is 5.6 seconds or around 179 FPS.
 
 Again, our expectations were incorrect, and we only gained 4 times extra frames instead of 12.
@@ -86,6 +88,10 @@ That leads us to the next approach.
 
 Since we know the rendering algorithm in advance, we can spread the computations evenly between threads.
 
+![](./media/mandelbrot2.png)
+
+We were able to reduce the execution time to 3.52 seconds or 284 FPS, which is a 7 times increase.
+
 | Thread number |  Surface area |
 |:-------------:|:-----------:|
 | 1             | 27.3%        |
@@ -95,9 +101,7 @@ Since we know the rendering algorithm in advance, we can spread the computations
 | 5             | 3.4%         |
 | 6             | 3.4%         |
 
-We were able to reduce the execution time to 3.52 seconds or 284 FPS, which is a 7 times increase.
-
-Even after evenly spreading the computations between the threads, we are still far away from our desired 12x increase in speed.
+But even after evenly spreading the computations between the threads, we are still far away from our desired 12x increase in speed.
 
 Since each core on my CPU has two threads, it cannot fully work twice as fast:
 - Each core only has a single instance of L3 cache
