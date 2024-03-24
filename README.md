@@ -55,7 +55,7 @@ Firstly, the time it takes to calculate a vector of 8 floats is defined by the s
 
 Secondly, we still have to look up colors for each pixel one by one.
 
-But, in reality, we came close to the theoretical limit, which is quite good.
+But in reality, we came close to the theoretical limit, which is quite good.
 
 ## Multithreading Approach
 
