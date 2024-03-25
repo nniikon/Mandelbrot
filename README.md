@@ -6,13 +6,13 @@ The Mandelbrot Set can be defined using this simple pseudocode algorithm.
 
 ```
 for each pixel (Px, Py) on the screen do
-    x0 := scaled x coordinate of pixel (scaled to lie in the Mandelbrot X scale (-2.00, 0.47))
-    y0 := scaled y coordinate of pixel (scaled to lie in the Mandelbrot Y scale (-1.12, 1.12))
+    x0 := scaled x coordinate of pixel
+    y0 := scaled y coordinate of pixel
     x := 0.0
     y := 0.0
     iteration := 0
-    max_iteration := 1000
-    while (x^2 + y^2 ≤ 2^2 AND iteration < max_iteration) do
+    max_iteration := 256
+    while (x^2 + y^2 ≤ Radius^2 AND iteration < max_iteration) do
         xtemp := x^2 - y^2 + x0
         y := 2*x*y + y0
         x := xtemp
