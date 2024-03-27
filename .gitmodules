@@ -1,0 +1,3 @@
+[submodule "Thread-Pool"]
+	path = Thread-Pool
+	url = git@github.com:nniikon/Thread-Pool.git
