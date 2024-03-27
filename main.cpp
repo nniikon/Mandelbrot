@@ -3,6 +3,8 @@
 #include <thread>
 
 #include <CL/cl.h>
+#include "Thread-Pool/thread_pool.h"
+
 struct MandelbrotGPU
 {
     cl_int err;
@@ -13,12 +15,14 @@ struct MandelbrotGPU
     cl_program program;
     cl_kernel kernel;
     cl_mem cy_buffer, cx_buffer, result_buffer;
-    float* cyVec, * cxVec;
+    float* cyVec;
+    float* cxVec;
     int* result;
 };
 
 // cringe
 MandelbrotGPU gpu = {};
+TH_Pool      pool = {};
 
 const int WINDOW_WIDTH  = 1920;
 const int WINDOW_HEIGHT = 1080;
@@ -31,6 +35,7 @@ void mandelbrot_naive        (sf::Uint8* pixels, float magnifier, float shiftX);
 void mandelbrot_vectorized   (sf::Uint8* pixels, float magnifier, float shiftX);
 void mandelbrot_multithreaded(sf::Uint8* pixels, float magnifier, float shiftX);
 void mandelbrot_unfair       (sf::Uint8* pixels, float magnifier, float shiftX);
+void mandelbrot_pool         (sf::Uint8* pixels, float magnifier, float shiftX);
 
 MandelbrotGPU mandelbrot_gpu_setup();
 void mandelbrot_gpu(sf::Uint8* pixels, float magnifier, float shiftX);
@@ -48,24 +53,27 @@ static void test_implem(sf::Uint8* pixels, void (*func)(sf::Uint8*, float, float
         func(pixels, 1.0f, 0.0f);
 
     timespec_get(&end, TIME_UTC);
-    double elapsed = (end.tv_sec - start.tv_sec) + (end.tv_nsec - start.tv_nsec) / 1000000000.0;
+    double elapsed = (end.tv_sec - start.tv_sec) + (end.tv_nsec - start.tv_nsec) / 1e9f; // Разобраться!
     printf("%.5f seconds\n", elapsed);
 }
 
 void test(sf::Uint8* pixels)
 {
     const int nTests = 1000;
-    test_implem(pixels, mandelbrot_unfair,        "unfair",        nTests);
-    test_implem(pixels, mandelbrot_multithreaded, "multithreaded", nTests);
-    test_implem(pixels, mandelbrot_gpu,           "gpu",           nTests);
     test_implem(pixels, mandelbrot_naive,         "naive"     ,    nTests);
     test_implem(pixels, mandelbrot_vectorized,    "vectorized",    nTests);
+    test_implem(pixels, mandelbrot_multithreaded, "multithreaded", nTests);
+    //test_implem(pixels, mandelbrot_gpu,           "gpu",           nTests);
+    test_implem(pixels, mandelbrot_unfair,        "unfair",        nTests);
+    test_implem(pixels, mandelbrot_pool,          "pool"     ,     nTests);
 }
 
 int main()
 {
+    TH_PoolInit(&pool, N_THREADS);
+
     gpu = mandelbrot_gpu_setup();
-    sf::Uint8* pixels = new sf::Uint8[WINDOW_WIDTH * WINDOW_HEIGHT * 4];
+    sf::Uint8* pixels = (sf::Uint8*) calloc(WINDOW_WIDTH * WINDOW_HEIGHT * 4, sizeof(sf::Uint8));
     test(pixels);
 
     sf::RenderWindow window(sf::VideoMode(WINDOW_WIDTH, WINDOW_HEIGHT), "Mondelbrot");
@@ -79,8 +87,6 @@ int main()
     double scale  = 1.0f;
     double shiftX = 0.0f;
     
-    MandelbrotGPU gpu = mandelbrot_gpu_setup();
-
     while (window.isOpen())
     {
         sf::Event event;
@@ -108,7 +114,7 @@ int main()
             }    
         }
         
-        mandelbrot_multithreaded(pixels, scale, shiftX);
+        mandelbrot_pool(pixels, scale, shiftX);
         texture.update(pixels);
 
         window.clear();
@@ -117,7 +123,9 @@ int main()
     }
 
     mandelbrot_gpu_destr(&gpu);
-    delete[] pixels;
+    free(pixels);
+
+    TH_PoolDtor(&pool);
 
     return 0;
 }
@@ -160,19 +168,15 @@ void mandelbrot_naive(sf::Uint8* pixels, float magnifier, float shiftX)
                 ++iteration;
             }
 
-            sf::Uint8 r, g, b;
+            sf::Uint8 r = 0;
+            sf::Uint8 g = 0;
+            sf::Uint8 b = 0;
             if (iteration < MAX_ITERATION_DEPTH)
             {
                 float iterNormalized = iteration * colorScale;
                 r = (sf::Uint8)(iterNormalized / 2);
                 g = (sf::Uint8)(iterNormalized * 2 + 2);
                 b = (sf::Uint8)(iterNormalized * 2 + 5);
-            }
-            else 
-            {
-                r = 0;
-                g = 0;
-                b = 0;
             }
 
             int pixelIndex = (screenY * WINDOW_WIDTH + screenX) * 4;
@@ -268,12 +272,7 @@ static void mandelbrot_vectorized_internal(sf::Uint8* pixels, float magnifier, f
                     g = (sf::Uint8)(iterNormalized * 2 + 2);
                     b = (sf::Uint8)(iterNormalized * 2 + 5);
                 }
-                else 
-                {
-                    r = 0;
-                    g = 0;
-                    b = 0;
-                }
+
                 int pixelIndex = (screenY * WINDOW_WIDTH + screenX + i) * 4;
                 pixels[pixelIndex + 0] = r;
                 pixels[pixelIndex + 1] = g;
@@ -314,19 +313,8 @@ void mandelbrot_multithreaded(sf::Uint8* pixels, float magnifier, float shiftX)
 
 void mandelbrot_unfair(sf::Uint8* pixels, float magnifier, float shiftX)
 {
+    static_assert(WINDOW_HEIGHT == 1080);
     int coords[] = {0, 295, 365, 421, 466, 503, 540, 577, 613, 658, 714, 784, 1080};
-    //mandelbrot_vectorized_internal(pixels, magnifier, shiftX, 0, 295);
-    //mandelbrot_vectorized_internal(pixels, magnifier, shiftX, 296, 365);
-    //mandelbrot_vectorized_internal(pixels, magnifier, shiftX, 366, 421);
-    //mandelbrot_vectorized_internal(pixels, magnifier, shiftX, 422, 466);
-    //mandelbrot_vectorized_internal(pixels, magnifier, shiftX, 467, 503);
-    //mandelbrot_vectorized_internal(pixels, magnifier, shiftX, 504, 540);
-    //mandelbrot_vectorized_internal(pixels, magnifier, shiftX, 541, 577);
-    //mandelbrot_vectorized_internal(pixels, magnifier, shiftX, 578, 613);
-    //mandelbrot_vectorized_internal(pixels, magnifier, shiftX, 614, 658);
-    //mandelbrot_vectorized_internal(pixels, magnifier, shiftX, 659, 714);
-    //mandelbrot_vectorized_internal(pixels, magnifier, shiftX, 715, 784);
-    //mandelbrot_vectorized_internal(pixels, magnifier, shiftX, 785, 1080);
 
     std::vector<std::thread> threads;
 
@@ -335,7 +323,7 @@ void mandelbrot_unfair(sf::Uint8* pixels, float magnifier, float shiftX)
         threads.emplace_back([&, j]()
         {
             int startY = coords[j];
-            int endY   = coords[j + 1] - 1;
+            int endY   = coords[j + 1];
             mandelbrot_vectorized_internal(pixels, magnifier, shiftX, startY, endY);
         });
     }
@@ -346,6 +334,50 @@ void mandelbrot_unfair(sf::Uint8* pixels, float magnifier, float shiftX)
     }
 }
 
+struct MandelbrotArgs
+{
+    sf::Uint8* pixels;
+    float magnifier;
+    float shiftX;
+    int leftBound;
+    int rightBound;
+};
+
+void mandelbrot_pool_internal(void* mandelStruct)
+{
+    MandelbrotArgs* args = (MandelbrotArgs*) mandelStruct;
+
+    mandelbrot_vectorized_internal(args->pixels, args->magnifier, 
+                                   args->shiftX, args->leftBound, args->rightBound);
+}
+
+void mandelbrot_pool(sf::Uint8* pixels, float magnifier, float shiftX)
+{
+    int step = 8;
+
+    MandelbrotArgs args[WINDOW_HEIGHT / 8] = {};
+    for (int i = 0; i < WINDOW_HEIGHT; i += step)
+    {
+        args[i/8] = 
+        {
+            .pixels = pixels,
+            .magnifier = magnifier,
+            .shiftX = shiftX,
+            .leftBound = i,
+            .rightBound = i + step,
+        };
+        TH_Job job = 
+        {
+            .func = (void (*)(void*)) mandelbrot_pool_internal,
+            .args = &args[i/8],
+        };
+        TH_PoolAddJob(&pool, job);
+    }
+
+    TH_PoolWait(&pool);
+    
+    return;
+}
 
 #include <CL/opencl.hpp>
 
@@ -378,28 +410,24 @@ const char* kernel_source = R"(
 MandelbrotGPU mandelbrot_gpu_setup() {
     MandelbrotGPU gpu = {};
 
-    // Get the first available OpenCL platform
     gpu.err = clGetPlatformIDs(1, &gpu.platform, NULL);
     if (gpu.err != CL_SUCCESS) {
         printf("Error getting platform ID: %d\n", gpu.err);
         return gpu;
     }
 
-    // Get the first available CPU device
     gpu.err = clGetDeviceIDs(gpu.platform, CL_DEVICE_TYPE_CPU, 1, &gpu.device, NULL);
     if (gpu.err != CL_SUCCESS) {
         printf("Error getting device ID: %d\n", gpu.err);
         return gpu;
     }
 
-    // Create an OpenCL context
     gpu.context = clCreateContext(NULL, 1, &gpu.device, NULL, NULL, &gpu.err);
     if (gpu.err != CL_SUCCESS) {
         printf("Error creating context: %d\n", gpu.err);
         return gpu;
     }
 
-    // Create a command queue
     gpu.queue = clCreateCommandQueue(gpu.context, gpu.device, 0, &gpu.err);
     if (gpu.err != CL_SUCCESS) {
         printf("Error creating command queue: %d\n", gpu.err);
@@ -407,7 +435,6 @@ MandelbrotGPU mandelbrot_gpu_setup() {
         return gpu;
     }
 
-    // Create the program from the kernel source
     gpu.program = clCreateProgramWithSource(gpu.context, 1, (const char **)&kernel_source, NULL, &gpu.err);
     if (gpu.err != CL_SUCCESS) {
         printf("Error creating program: %d\n", gpu.err);
@@ -416,13 +443,12 @@ MandelbrotGPU mandelbrot_gpu_setup() {
         return gpu;
     }
     
-    // Build the program
     gpu.err = clBuildProgram(gpu.program, 0, NULL, NULL, NULL, NULL);
     if (gpu.err != CL_SUCCESS) {
-        size_t log_size;
-        char *log;
+        size_t log_size = 0;
+        char* log = NULL;
         clGetProgramBuildInfo(gpu.program, gpu.device, CL_PROGRAM_BUILD_LOG, 0, NULL, &log_size);
-        log = (char *)malloc(log_size + 1);
+        log = (char *) calloc(log_size + 1, 1);
         clGetProgramBuildInfo(gpu.program, gpu.device, CL_PROGRAM_BUILD_LOG, log_size, log, NULL);
         log[log_size] = '\0';
         printf("Build log:\n%s\n", log);
@@ -433,7 +459,6 @@ MandelbrotGPU mandelbrot_gpu_setup() {
         return gpu;
     }
 
-    // Create the kernel
     gpu.kernel = clCreateKernel(gpu.program, "solve_mandelbrot", &gpu.err);
     if (gpu.err != CL_SUCCESS) {
         printf("Error creating kernel: %d\n", gpu.err);
@@ -555,6 +580,9 @@ void mandelbrot_gpu(sf::Uint8* pixels, float magnifier, float shiftX)
         clReleaseContext(gpu.context);
         return;
     }
+    clReleaseMemObject(gpu.cy_buffer);
+    clReleaseMemObject(gpu.cx_buffer);
+    clReleaseMemObject(gpu.result_buffer);
 
     // OPENCL SHIT ENDS
 
@@ -586,9 +614,6 @@ void mandelbrot_gpu_destr(MandelbrotGPU* gpu)
     free(gpu->cyVec);
     free(gpu->result);
 
-    clReleaseMemObject(gpu->cy_buffer);
-    clReleaseMemObject(gpu->cx_buffer);
-    clReleaseMemObject(gpu->result_buffer);
     clReleaseKernel(gpu->kernel);
     clReleaseProgram(gpu->program);
     clReleaseCommandQueue(gpu->queue);
