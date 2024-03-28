@@ -1,6 +1,7 @@
 #include <SFML/Graphics.hpp>
 #include <immintrin.h>
 #include <thread>
+#include <x86intrin.h>
 
 #include <CL/cl.h>
 #include "Thread-Pool/thread_pool.h"
@@ -45,25 +46,22 @@ static void test_implem(sf::Uint8* pixels, void (*func)(sf::Uint8*, float, float
                             const char* name, int nTests)
 {
     printf("Testing %-50s: ", name);
-    timespec start = {};
-    timespec end = {};
-    timespec_get(&start, TIME_UTC);
+    uint64_t sperma1 = __rdtsc();
 
     for (int i = 0; i < nTests; i++)
         func(pixels, 1.0f, 0.0f);
 
-    timespec_get(&end, TIME_UTC);
-    double elapsed = (end.tv_sec - start.tv_sec) + (end.tv_nsec - start.tv_nsec) / 1e9f; // Разобраться!
-    printf("%.5f seconds\n", elapsed);
+    uint64_t sperma2 = __rdtsc();
+    printf("%lu * 10^8 ticks\n", (sperma2 - sperma1) / 100'000'000);
 }
 
 void test(sf::Uint8* pixels)
 {
-    const int nTests = 1000;
+    const int nTests = 2500;
     test_implem(pixels, mandelbrot_naive,         "naive"     ,    nTests);
     test_implem(pixels, mandelbrot_vectorized,    "vectorized",    nTests);
     test_implem(pixels, mandelbrot_multithreaded, "multithreaded", nTests);
-    //test_implem(pixels, mandelbrot_gpu,           "gpu",           nTests);
+//    test_implem(pixels, mandelbrot_gpu,           "gpu",           nTests);
     test_implem(pixels, mandelbrot_unfair,        "unfair",        nTests);
     test_implem(pixels, mandelbrot_pool,          "pool"     ,     nTests);
 }
@@ -75,6 +73,8 @@ int main()
     gpu = mandelbrot_gpu_setup();
     sf::Uint8* pixels = (sf::Uint8*) calloc(WINDOW_WIDTH * WINDOW_HEIGHT * 4, sizeof(sf::Uint8));
     test(pixels);
+
+    return 0;
 
     sf::RenderWindow window(sf::VideoMode(WINDOW_WIDTH, WINDOW_HEIGHT), "Mondelbrot");
 
