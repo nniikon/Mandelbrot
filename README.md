@@ -45,7 +45,7 @@ My CPU supports AVX2 instructions, meaning that we can perform up to 8 floating-
 
 Let's rewrite our code and test it again.
 
-The results are 180*10^9, or around 45 FPS.
+The results show 180*10^9 ticks per second, or around 45 FPS.
 
 However, we were expecting an 8 times increase and 49 FPS. Where did we lose the 4 FPS?
 
