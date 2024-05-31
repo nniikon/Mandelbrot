@@ -29,7 +29,7 @@ Let's rewrite the pseudocode in C.
 
 I have also applied various optimization techniques to make the code run faster. Those are basic and can be found anywhere on the Internet. We are not going to discuss those.
 
-The results show 1170 * 10^9 ticks per 2500 frames, which is very approximately around 7 FPS.
+The results show $1170 \cdot 10^9$ ticks per 2500 frames, which is very approximately around 7 FPS.
 
 Note that the ticks are more precise and FPS is only given for a better understanding of fast the approach is.
 
@@ -45,7 +45,7 @@ My CPU supports AVX2 instructions, meaning that we can perform up to 8 floating-
 
 Let's rewrite our code and test it again.
 
-The results show 180*10^9 ticks per second, or around 45 FPS.
+The results show $180 \cdot 10^9$ ticks per second, or around 45 FPS.
 
 However, we were expecting an 8 times increase and 49 FPS. Where did we lose the 4 FPS?
 
@@ -63,7 +63,7 @@ My CPU has 6 physical cores and supports 12 threads. We will use them all. We ar
 
 ![](./media/mandelbrot1.png)
 
-The results show 43 * 10^9 ticks or around 190 FPS.
+The results show $43 \cdot 10^9$ ticks or around 190 FPS.
 
 Again, our expectations were incorrect, and we only gained 4 times extra frames instead of 12.
 
@@ -91,7 +91,7 @@ This standard approach of handling embarrassingly parallel problems is called a 
 
 In order to implement it, I created a simple [thread pool library](https://github.com/nniikon/Thread-Pool). 
 
-Let's test it. The results show 25 * 10^9 ticks or around 330 FPS.
+Let's test it. The results show $25 \cdot 10^9$ ticks or around 330 FPS.
 
 This is around 7 times faster than the vectorized approach, which is a great improvement, especially considering that my CPU only has 6 cores.
 
@@ -100,6 +100,6 @@ After exploring several optimization approaches for the Mandelbrot set calculati
 | Approach              | Naive  | Vectorized | Multithreading | Multithreading (thread pool) |
 |-----------------------|:------:|:----------:|:--------------:|:----------------------------:|
 | FPS (approximately)   | 7 (1x) | 45 (6.5x)  | 179 (25.6x)    | 330 (46.8x)                  |
-| Ticks * 10^9          | 1170   | 180        | 43             | 25                           |
+| Ticks * $10^9$        | 1170   | 180        | 43             | 25                           |
 
 Thanks for reading!
