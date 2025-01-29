@@ -3,27 +3,7 @@
 #include <thread>
 #include <x86intrin.h>
 
-#include <CL/cl.h>
 #include "Thread-Pool/thread_pool.h"
-
-struct MandelbrotGPU
-{
-    cl_int err;
-    cl_platform_id platform;
-    cl_device_id device;
-    cl_context context;
-    cl_command_queue queue;
-    cl_program program;
-    cl_kernel kernel;
-    cl_mem cy_buffer, cx_buffer, result_buffer;
-    float* cyVec;
-    float* cxVec;
-    int* result;
-};
-
-// cringe
-MandelbrotGPU gpu = {};
-TH_Pool      pool = {};
 
 const int WINDOW_WIDTH  = 1920;
 const int WINDOW_HEIGHT = 1080;
@@ -38,9 +18,7 @@ void mandelbrot_multithreaded(sf::Uint8* pixels, float magnifier, float shiftX);
 void mandelbrot_unfair       (sf::Uint8* pixels, float magnifier, float shiftX);
 void mandelbrot_pool         (sf::Uint8* pixels, float magnifier, float shiftX);
 
-MandelbrotGPU mandelbrot_gpu_setup();
-void mandelbrot_gpu(sf::Uint8* pixels, float magnifier, float shiftX);
-void mandelbrot_gpu_destr(MandelbrotGPU* gpu);
+TH_Pool pool;
 
 static void test_implem(sf::Uint8* pixels, void (*func)(sf::Uint8*, float, float),
                             const char* name, int nTests)
@@ -58,10 +36,9 @@ static void test_implem(sf::Uint8* pixels, void (*func)(sf::Uint8*, float, float
 void test(sf::Uint8* pixels)
 {
     const int nTests = 2500;
-    test_implem(pixels, mandelbrot_naive,         "naive"     ,    nTests);
+    // test_implem(pixels, mandelbrot_naive,         "naive"     ,    nTests);
     test_implem(pixels, mandelbrot_vectorized,    "vectorized",    nTests);
     test_implem(pixels, mandelbrot_multithreaded, "multithreaded", nTests);
-//    test_implem(pixels, mandelbrot_gpu,           "gpu",           nTests);
     test_implem(pixels, mandelbrot_unfair,        "unfair",        nTests);
     test_implem(pixels, mandelbrot_pool,          "pool"     ,     nTests);
 }
@@ -70,7 +47,6 @@ int main()
 {
     TH_PoolInit(&pool, N_THREADS);
 
-    gpu = mandelbrot_gpu_setup();
     sf::Uint8* pixels = (sf::Uint8*) calloc(WINDOW_WIDTH * WINDOW_HEIGHT * 4, sizeof(sf::Uint8));
     test(pixels);
 
@@ -122,7 +98,6 @@ int main()
         window.display();
     }
 
-    mandelbrot_gpu_destr(&gpu);
     free(pixels);
 
     TH_PoolDtor(&pool);
@@ -377,245 +352,4 @@ void mandelbrot_pool(sf::Uint8* pixels, float magnifier, float shiftX)
     TH_PoolWait(&pool);
     
     return;
-}
-
-#include <CL/opencl.hpp>
-
-const char* kernel_source = R"(
-    __kernel void solve_mandelbrot(__global float const * real,
-                                   __global float const * imag,
-                                   __global int * result)
-    {
-        // Get Parallel Index
-        unsigned int i = get_global_id(0);
-
-        float x = real[i]; // Real Component
-        float y = imag[i]; // Imaginary Component
-        int   n = 0;       // Tracks Color Information
-
-        // Compute the Mandelbrot Set
-        while ((x * x + y * y <= 2 * 2) && n < 256)
-        {
-            float xtemp = x * x - y * y + real[i];
-            y = 2 * x * y + imag[i];
-            x = xtemp;
-            n++;
-        }
-
-        // Write Results to Output Arrays
-        result[i] = x * x + y * y <= 2 * 2 ? -1 : n;
-    }
-)";
-
-MandelbrotGPU mandelbrot_gpu_setup() {
-    MandelbrotGPU gpu = {};
-
-    gpu.err = clGetPlatformIDs(1, &gpu.platform, NULL);
-    if (gpu.err != CL_SUCCESS) {
-        printf("Error getting platform ID: %d\n", gpu.err);
-        return gpu;
-    }
-
-    gpu.err = clGetDeviceIDs(gpu.platform, CL_DEVICE_TYPE_CPU, 1, &gpu.device, NULL);
-    if (gpu.err != CL_SUCCESS) {
-        printf("Error getting device ID: %d\n", gpu.err);
-        return gpu;
-    }
-
-    gpu.context = clCreateContext(NULL, 1, &gpu.device, NULL, NULL, &gpu.err);
-    if (gpu.err != CL_SUCCESS) {
-        printf("Error creating context: %d\n", gpu.err);
-        return gpu;
-    }
-
-    gpu.queue = clCreateCommandQueue(gpu.context, gpu.device, 0, &gpu.err);
-    if (gpu.err != CL_SUCCESS) {
-        printf("Error creating command queue: %d\n", gpu.err);
-        clReleaseContext(gpu.context);
-        return gpu;
-    }
-
-    gpu.program = clCreateProgramWithSource(gpu.context, 1, (const char **)&kernel_source, NULL, &gpu.err);
-    if (gpu.err != CL_SUCCESS) {
-        printf("Error creating program: %d\n", gpu.err);
-        clReleaseCommandQueue(gpu.queue);
-        clReleaseContext(gpu.context);
-        return gpu;
-    }
-    
-    gpu.err = clBuildProgram(gpu.program, 0, NULL, NULL, NULL, NULL);
-    if (gpu.err != CL_SUCCESS) {
-        size_t log_size = 0;
-        char* log = NULL;
-        clGetProgramBuildInfo(gpu.program, gpu.device, CL_PROGRAM_BUILD_LOG, 0, NULL, &log_size);
-        log = (char *) calloc(log_size + 1, 1);
-        clGetProgramBuildInfo(gpu.program, gpu.device, CL_PROGRAM_BUILD_LOG, log_size, log, NULL);
-        log[log_size] = '\0';
-        printf("Build log:\n%s\n", log);
-        free(log);
-        clReleaseProgram(gpu.program);
-        clReleaseCommandQueue(gpu.queue);
-        clReleaseContext(gpu.context);
-        return gpu;
-    }
-
-    gpu.kernel = clCreateKernel(gpu.program, "solve_mandelbrot", &gpu.err);
-    if (gpu.err != CL_SUCCESS) {
-        printf("Error creating kernel: %d\n", gpu.err);
-        clReleaseProgram(gpu.program);
-        clReleaseCommandQueue(gpu.queue);
-        clReleaseContext(gpu.context);
-        return gpu;
-    }
-    size_t nElems = WINDOW_HEIGHT * WINDOW_WIDTH;
-    float* cxVec = (float*) calloc(sizeof(float), nElems);
-    float* cyVec = (float*) calloc(sizeof(float), nElems);
-    int * result = (int*)   calloc(sizeof(int)  , nElems);
-    if (!cxVec || !cyVec || !result)
-    {
-        printf("Error creating kernel: %d\n", gpu.err);
-        clReleaseProgram(gpu.program);
-        clReleaseCommandQueue(gpu.queue);
-        clReleaseContext(gpu.context);
-        return gpu;
-    }
-    gpu.cxVec = cxVec;
-    gpu.cyVec = cyVec;
-    gpu.result = result;
-
-    return gpu;
-}
-
-
-void mandelbrot_gpu(sf::Uint8* pixels, float magnifier, float shiftX)
-{
-    size_t nElems = WINDOW_HEIGHT * WINDOW_WIDTH;
-
-    // Main logic
-    const float radius2 = MAX_RADIUS * MAX_RADIUS;
-    const float scale = (float)WINDOW_WIDTH / WINDOW_HEIGHT;
-    shiftX -= 0.5f;
-    magnifier -= 0.3f;
-
-    const float invMagnifier = 1.0f / magnifier;
-    const float colorScale = 255.0f / MAX_ITERATION_DEPTH;
-
-    const float dx = scale * invMagnifier * (2.0f / WINDOW_WIDTH);
-    const float dy = invMagnifier * (2.0f / WINDOW_HEIGHT);
-
-    size_t bufferSize = WINDOW_HEIGHT * WINDOW_WIDTH * sizeof(float);
-    size_t resultSize = WINDOW_HEIGHT * WINDOW_WIDTH * sizeof(int);
-    size_t elemsSize  = WINDOW_HEIGHT * WINDOW_WIDTH;
-
-
-    float cy = -1.0f * invMagnifier;
-    for (int screenY = 0; screenY < WINDOW_HEIGHT; ++screenY, cy += dy)
-    {
-        float cx = shiftX - scale * invMagnifier;
-        for (int screenX = 0; screenX < WINDOW_WIDTH; ++screenX, cx += dx)
-        {
-            gpu.cyVec[screenY * WINDOW_WIDTH + screenX] = cx;
-            gpu.cxVec[screenY * WINDOW_WIDTH + screenX] = cy;
-        }
-    }
-
-    
-    // Create input and output buffers
-    cl_mem cy_buffer     = clCreateBuffer(gpu.context, CL_MEM_READ_ONLY | CL_MEM_COPY_HOST_PTR, nElems * sizeof(float), gpu.cyVec, &gpu.err);
-    cl_mem cx_buffer     = clCreateBuffer(gpu.context, CL_MEM_READ_ONLY | CL_MEM_COPY_HOST_PTR, nElems * sizeof(float), gpu.cxVec, &gpu.err);
-    cl_mem result_buffer = clCreateBuffer(gpu.context, CL_MEM_WRITE_ONLY, nElems * sizeof(int), NULL, &gpu.err);
-    if (gpu.err != CL_SUCCESS) {
-        printf("Error creating buffers: %d\n", gpu.err);
-        clReleaseKernel(gpu.kernel);
-        clReleaseProgram(gpu.program);
-        clReleaseCommandQueue(gpu.queue);
-        clReleaseContext(gpu.context);
-        return;
-    }
-
-    // Set kernel arguments
-    gpu.err  = clSetKernelArg(gpu.kernel, 0, sizeof(cl_mem), &cy_buffer);
-    gpu.err |= clSetKernelArg(gpu.kernel, 1, sizeof(cl_mem), &cx_buffer);
-    gpu.err |= clSetKernelArg(gpu.kernel, 2, sizeof(cl_mem), &result_buffer);
-    if (gpu.err != CL_SUCCESS) {
-        printf("Error setting kernel arguments: %d\n", gpu.err);
-        clReleaseMemObject(cy_buffer);
-        clReleaseMemObject(cx_buffer);
-        clReleaseMemObject(result_buffer);
-        clReleaseKernel(gpu.kernel);
-        clReleaseProgram(gpu.program);
-        clReleaseCommandQueue(gpu.queue);
-        clReleaseContext(gpu.context);
-        return;
-    }
-
-    // Execute the kernel
-    size_t global_size = nElems;
-    gpu.err = clEnqueueNDRangeKernel(gpu.queue, gpu.kernel, 1, NULL, &global_size, NULL, 0, NULL, NULL);
-    if (gpu.err != CL_SUCCESS) {
-        printf("Error executing kernel: %d\n", gpu.err);
-        clReleaseMemObject(cy_buffer);
-        clReleaseMemObject(cx_buffer);
-        clReleaseMemObject(result_buffer);
-        clReleaseKernel(gpu.kernel);
-        clReleaseProgram(gpu.program);
-        clReleaseCommandQueue(gpu.queue);
-        clReleaseContext(gpu.context);
-        return;
-    }
-
-    // Read the result buffer
-    gpu.err = clEnqueueReadBuffer(gpu.queue, result_buffer, CL_TRUE, 0, nElems * sizeof(int), gpu.result, 0, NULL, NULL);
-    if (gpu.err != CL_SUCCESS) {
-        printf("Error reading result buffer: %d\n", gpu.err);
-        free(gpu.cyVec);
-        free(gpu.cxVec);
-        free(gpu.result);
-        clReleaseMemObject(cy_buffer);
-        clReleaseMemObject(cx_buffer);
-        clReleaseMemObject(result_buffer);
-        clReleaseKernel(gpu.kernel);
-        clReleaseProgram(gpu.program);
-        clReleaseCommandQueue(gpu.queue);
-        clReleaseContext(gpu.context);
-        return;
-    }
-    clReleaseMemObject(gpu.cy_buffer);
-    clReleaseMemObject(gpu.cx_buffer);
-    clReleaseMemObject(gpu.result_buffer);
-
-    // OPENCL SHIT ENDS
-
-    for (int pixel = 0; pixel < WINDOW_WIDTH * WINDOW_HEIGHT; pixel++)
-    {
-        sf::Uint8 r = 0;
-        sf::Uint8 g = 0;
-        sf::Uint8 b = 0;
-
-        if (gpu.result[pixel] != -1)
-        {
-            float iterNormalized = gpu.result[pixel] * colorScale;
-            r = (sf::Uint8)(iterNormalized / 2);
-            g = (sf::Uint8)(iterNormalized * 2 + 2);
-            b = (sf::Uint8)(iterNormalized * 2 + 5);
-        }
-
-        pixels[4 * pixel + 0] = r;
-        pixels[4 * pixel + 1] = g;
-        pixels[4 * pixel + 2] = b;
-        pixels[4 * pixel + 3] = 255;
-    }
-}
-
-
-void mandelbrot_gpu_destr(MandelbrotGPU* gpu)
-{
-    free(gpu->cxVec);
-    free(gpu->cyVec);
-    free(gpu->result);
-
-    clReleaseKernel(gpu->kernel);
-    clReleaseProgram(gpu->program);
-    clReleaseCommandQueue(gpu->queue);
-    clReleaseContext(gpu->context);
 }
