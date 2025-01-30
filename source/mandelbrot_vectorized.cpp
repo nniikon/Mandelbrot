@@ -3,8 +3,13 @@
 
 #include <x86intrin.h>
 
-void mandelbrot_vectorized_internal(sf::Uint8* pixels, float magnifier, float shiftX,
-                                    int leftBound, int rightBound)
+void mandelbrot_vectorized(sf::Uint8* pixels, float magnifier, float shiftX)
+{
+    mandelbrot_vectorized_ranged(pixels, magnifier, shiftX, 0.0f, WINDOW_HEIGHT);
+}
+
+void mandelbrot_vectorized_ranged(sf::Uint8* pixels, float magnifier, float shiftX,
+                                  int y_from, int y_to)
 {
     const float radius2 = MAX_RADIUS * MAX_RADIUS;
     const float scale = (float)WINDOW_WIDTH / WINDOW_HEIGHT;
@@ -25,9 +30,9 @@ void mandelbrot_vectorized_internal(sf::Uint8* pixels, float magnifier, float sh
 
     __m256 _maxRadius2 = _mm256_set1_ps(radius2);
 
-    float cy = -1.0f * invMagnifier + dy * leftBound;
+    float cy = -1.0f * invMagnifier + dy * y_from;
     __m256 _cy = _mm256_set1_ps(cy);
-    for (int screenY = leftBound; screenY < rightBound; ++screenY, cy += dy)
+    for (int screenY = y_from; screenY < y_to; ++screenY, cy += dy)
     {
         float cx = shiftX - scale * invMagnifier;
         __m256 _cx = _mm256_set1_ps(cx);
@@ -98,9 +103,4 @@ void mandelbrot_vectorized_internal(sf::Uint8* pixels, float magnifier, float sh
         }
         _cy = _mm256_add_ps(_cy, _dy);
     }
-}
-
-void mandelbrot_vectorized(sf::Uint8* pixels, float magnifier, float shiftX)
-{
-    mandelbrot_vectorized_internal(pixels, magnifier, shiftX, 0.0f, WINDOW_HEIGHT);
 }

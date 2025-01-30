@@ -3,8 +3,8 @@
 
 #include <SFML/Graphics.hpp>
 
-void mandelbrot_vectorized_internal(sf::Uint8* pixels, float magnifier, float shiftX,
-                                    int leftBound, int rightBound);
+void mandelbrot_vectorized_ranged(sf::Uint8* pixels, float magnifier, float shiftX,
+                                  int y_from, int y_to);
 
 void mandelbrot_vectorized(sf::Uint8* pixels, float magnifier, float shiftX);
 

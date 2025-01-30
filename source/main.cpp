@@ -4,7 +4,6 @@
 #include <immintrin.h>
 
 #include "mandelbrot_naive.h"
-#include "mandelbrot_optimized.h"
 #include "mandelbrot_vectorized.h"
 #include "mandelbrot_arrayed.h"
 #include "mandelbrot_thread_pool.h"
@@ -28,21 +27,23 @@ static void test_implementation(sf::Uint8* pixels, void (*func)(sf::Uint8*, floa
 
 void test(sf::Uint8* pixels)
 {
-    const int nTests = 50;
+    const int nTests = 30;
     test_implementation(pixels, mandelbrot_naive,       "naive"     , nTests);
-    test_implementation(pixels, mandelbrot_optimized,   "optimized" , nTests);
     test_implementation(pixels, mandelbrot_arrayed,     "arrayed"   , nTests);
     test_implementation(pixels, mandelbrot_vectorized,  "vectorized", nTests);
     test_implementation(pixels, mandelbrot_thread_pool, "pool"      , nTests);
 }
 
-int main()
+int main(int argc, char* argv[])
 {
     sf::Uint8* pixels = (sf::Uint8*) calloc(WINDOW_WIDTH * WINDOW_HEIGHT * 4,
                                                             sizeof(sf::Uint8));
-    // test(pixels);
+    if (argc > 1) {
+        test(pixels);
+        return 0;
+    }
 
-    sf::RenderWindow window(sf::VideoMode(WINDOW_WIDTH, WINDOW_HEIGHT), "Mondelbrot");
+    sf::RenderWindow window(sf::VideoMode(WINDOW_WIDTH, WINDOW_HEIGHT), "Mandelbrot");
 
     sf::Texture texture;
     texture.create(WINDOW_WIDTH, WINDOW_HEIGHT);
@@ -80,7 +81,7 @@ int main()
             }    
         }
 
-        mandelbrot_optimized(pixels, scale, shiftX);
+        mandelbrot_arrayed(pixels, scale, shiftX);
         texture.update(pixels);
 
         window.clear();

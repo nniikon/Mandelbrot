@@ -1,7 +1,7 @@
-CXX := g++
-CC := g++
-CXXFLAGS := -Wall -Wextra -O2 -std=c++11 -march=native
-CFLAGS := -Wall -Wextra -O2
+CXX := clang++
+CC := clang++
+CXXFLAGS := -Wall -Wextra -O3 -march=native -fopenmp-simd
+CFLAGS := -Wall -Wextra -O3 -march=native
 INCLUDE_DIRS := -Iinclude -IThread-Pool
 LDFLAGS := -pthread -lsfml-graphics -lsfml-window -lsfml-system
 BUILD_DIR := build

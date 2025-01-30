@@ -1,5 +1,6 @@
 *.o
+*.s
+*.json
 Mandelbrot
-.cache/clangd/index
+.cache/
 mandelbrot
-compile_commands.json
