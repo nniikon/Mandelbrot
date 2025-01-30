@@ -1,2 +1,5 @@
 *.o
 Mandelbrot
+.cache/clangd/index
+mandelbrot
+compile_commands.json
