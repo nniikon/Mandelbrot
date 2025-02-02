@@ -1,6 +1,8 @@
 #include <SFML/Graphics.hpp>
 
+#include <cassert>
 #include <cmath>
+#include <cstring>
 #include <immintrin.h>
 
 #include "mandelbrot_naive.h"
@@ -13,33 +15,27 @@
 static void test_implementation(sf::Uint8* pixels, void (*func)(sf::Uint8*, float, float),
                                 const char* name, int nTests)
 {
-    printf("Testing %-20s: ", name);
-    uint64_t startTime = __rdtsc();
+    printf("Testing %d times %s\n", nTests, name);
 
     for (int i = 0; i < nTests; i++)
         func(pixels, 1.0f, 0.0f);
-
-    uint64_t endTime = __rdtsc();
-
-    float pow = 8.f;
-    printf("%5lu * 10^%g ticks\n", (endTime - startTime) / (int)powf(10, pow), pow);
-}
-
-void test(sf::Uint8* pixels)
-{
-    const int nTests = 30;
-    test_implementation(pixels, mandelbrot_naive,       "naive"     , nTests);
-    test_implementation(pixels, mandelbrot_arrayed,     "arrayed"   , nTests);
-    test_implementation(pixels, mandelbrot_vectorized,  "vectorized", nTests);
-    test_implementation(pixels, mandelbrot_thread_pool, "pool"      , nTests);
 }
 
 int main(int argc, char* argv[])
 {
     sf::Uint8* pixels = (sf::Uint8*) calloc(WINDOW_WIDTH * WINDOW_HEIGHT * 4,
                                                             sizeof(sf::Uint8));
-    if (argc > 1) {
-        test(pixels);
+
+    if (argc > 2) {
+        int nTests = 0;
+        sscanf(argv[2], "%d", &nTests);
+
+        if      (strcmp(argv[1], "naive"      ) == 0) test_implementation(pixels, mandelbrot_naive,       "naive",       nTests);
+        else if (strcmp(argv[1], "vectorized" ) == 0) test_implementation(pixels, mandelbrot_vectorized,  "vectorized",  nTests);
+        else if (strcmp(argv[1], "arrayed"    ) == 0) test_implementation(pixels, mandelbrot_arrayed,     "arrayed",     nTests);
+        else if (strcmp(argv[1], "thread-pool") == 0) test_implementation(pixels, mandelbrot_thread_pool, "thread-pool", nTests);
+        else assert(0 && "Unknown implementation");
+
         return 0;
     }
 
