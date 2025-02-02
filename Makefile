@@ -1,9 +1,9 @@
 CXX := clang++
 CC := clang++
-CXXFLAGS := -Wall -Wextra -O3 -march=native -fopenmp-simd
+CXXFLAGS := -Wall -Wextra -O3 -march=native -fopenmp
 CFLAGS := -Wall -Wextra -O3 -march=native
 INCLUDE_DIRS := -Iinclude -IThread-Pool
-LDFLAGS := -pthread -lsfml-graphics -lsfml-window -lsfml-system
+LDFLAGS := -lpthread -lsfml-graphics -lsfml-window -lsfml-system -lomp
 BUILD_DIR := build
 
 C_SOURCES := Thread-Pool/thread_pool.c
