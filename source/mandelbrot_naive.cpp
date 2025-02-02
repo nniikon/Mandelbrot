@@ -45,7 +45,7 @@ void mandelbrot_naive(sf::Uint8* pixels, float magnifier, float shiftX)
                 ++iterations;
             }
 
-            sf::Color pixel_color = GetColor(iterations, MAX_ITERATION_DEPTH);
+            sf::Color pixel_color = get_color(iterations, MAX_ITERATION_DEPTH);
             const int pixel_index = (screen_y * WINDOW_WIDTH + screen_x) * 4;
             
             pixels[pixel_index + 0] = pixel_color.r;
@@ -94,7 +94,7 @@ void mandelbrot_naive(sf::Uint8* pixels, float magnifier, float shiftX)
                 ++iterations;
             }
 
-            sf::Color pixel_color = GetColor(iterations, MAX_ITERATION_DEPTH);
+            sf::Color pixel_color = get_color(iterations, MAX_ITERATION_DEPTH);
             const int pixel_index = (screen_y * WINDOW_WIDTH + screen_x) * 4;
             
             pixels[pixel_index + 0] = pixel_color.r;
