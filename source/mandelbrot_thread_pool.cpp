@@ -33,23 +33,24 @@ void mandelbrot_thread_pool(sf::Uint8* pixels, float magnifier, float shiftX)
         isPoolInitialized = true;
     }
 
-    int step = 8;
+    const int STEP = 8;
 
     MandelbrotArgs args[WINDOW_HEIGHT / 8] = {};
-    for (int i = 0; i < WINDOW_HEIGHT; i += step)
+    for (int i = 0; i < WINDOW_HEIGHT; i += STEP)
     {
-        args[i/8] = 
+        args[i / STEP] = 
         {
             .pixels = pixels,
             .magnifier = magnifier,
             .shiftX = shiftX,
             .leftBound = i,
-            .rightBound = i + step,
+            .rightBound = i + STEP,
         };
+
         TH_Job job = 
         {
             .func = (void (*)(void*)) mandelbrot_pool_internal,
-            .args = &args[i/8],
+            .args = &args[i / STEP],
         };
         TH_PoolAddJob(&pool, job);
     }
