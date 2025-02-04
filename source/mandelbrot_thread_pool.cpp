@@ -1,5 +1,5 @@
 #include "mandelbrot_thread_pool.h"
-#include "mandelbrot_vectorized.h"
+#include "mandelbrot_arrayed.h"
 #include "mandelbrot_config.h"
 
 #include "thread_pool.h"
@@ -19,8 +19,8 @@ void mandelbrot_pool_internal(void* mandelStruct)
 {
     MandelbrotArgs* args = (MandelbrotArgs*) mandelStruct;
 
-    mandelbrot_vectorized_ranged(args->pixels, args->magnifier, 
-                                 args->shiftX, args->leftBound, args->rightBound);
+    mandelbrot_arrayed_ranged(args->pixels, args->magnifier, 
+                              args->shiftX, args->leftBound, args->rightBound);
 }
 
 void mandelbrot_thread_pool(sf::Uint8* pixels, float magnifier, float shiftX)
