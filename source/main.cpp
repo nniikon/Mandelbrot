@@ -8,6 +8,7 @@
 #include "mandelbrot_naive.h"
 #include "mandelbrot_vectorized.h"
 #include "mandelbrot_arrayed.h"
+#include "mandelbrot_openmp.h"
 #include "mandelbrot_thread_pool.h"
 
 #include "mandelbrot_config.h"
@@ -33,6 +34,7 @@ int main(int argc, char* argv[])
         if      (strcmp(argv[1], "naive"      ) == 0) test_implementation(pixels, mandelbrot_naive,       "naive",       nTests);
         else if (strcmp(argv[1], "vectorized" ) == 0) test_implementation(pixels, mandelbrot_vectorized,  "vectorized",  nTests);
         else if (strcmp(argv[1], "arrayed"    ) == 0) test_implementation(pixels, mandelbrot_arrayed,     "arrayed",     nTests);
+        else if (strcmp(argv[1], "openmp"     ) == 0) test_implementation(pixels, mandelbrot_openmp,      "openmp",     nTests);
         else if (strcmp(argv[1], "thread-pool") == 0) test_implementation(pixels, mandelbrot_thread_pool, "thread-pool", nTests);
         else assert(0 && "Unknown implementation");
 
@@ -77,7 +79,7 @@ int main(int argc, char* argv[])
             }    
         }
 
-        mandelbrot_arrayed(pixels, scale, shiftX);
+        mandelbrot_openmp(pixels, scale, shiftX);
         texture.update(pixels);
 
         window.clear();
