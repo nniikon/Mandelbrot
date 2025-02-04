@@ -24,7 +24,7 @@ void mandelbrot_openmp(sf::Uint8* pixels, float magnifier, float shiftX)
 
     const float vec_c_step_x = c_step_x * VEC_SIZE;
 
-#pragma omp parallel for schedule(guided, 40)
+#pragma omp parallel for schedule(guided, 1)
     for (int screenY = 0; screenY < WINDOW_HEIGHT; screenY++) 
     {
         float c_y = -1.0f * invMagnifier + c_step_y * screenY;
