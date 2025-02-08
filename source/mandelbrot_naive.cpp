@@ -12,6 +12,7 @@ void mandelbrot_naive(sf::Uint8* pixels, float magnifier, float shiftX)
     const float ASPECT_RATIO = (float)(WINDOW_WIDTH) / WINDOW_HEIGHT;
 
     const float inv_magnifier = 1.0f / magnifier;
+    const float colorScale = 255.0f / MAX_ITERATION_DEPTH;
 
     const float pixel_step_x = ASPECT_RATIO * inv_magnifier * (2.0f / WINDOW_WIDTH);
     const float pixel_step_y = inv_magnifier                * (2.0f / WINDOW_HEIGHT);
@@ -45,13 +46,22 @@ void mandelbrot_naive(sf::Uint8* pixels, float magnifier, float shiftX)
                 ++iterations;
             }
 
-            sf::Color pixel_color = get_color(iterations, MAX_ITERATION_DEPTH);
-            const int pixel_index = (screen_y * WINDOW_WIDTH + screen_x) * 4;
-            
-            pixels[pixel_index + 0] = pixel_color.r;
-            pixels[pixel_index + 1] = pixel_color.g;
-            pixels[pixel_index + 2] = pixel_color.b;
-            pixels[pixel_index + 3] = 255u;
+                sf::Uint8 r = 0;
+                sf::Uint8 g = 0;
+                sf::Uint8 b = 0;
+                if (iterations < MAX_ITERATION_DEPTH)
+                {
+                    float iterNormalized = iterations * colorScale;
+                    r = (sf::Uint8)(iterNormalized / 2);
+                    g = (sf::Uint8)(iterNormalized * 2 + 2);
+                    b = (sf::Uint8)(iterNormalized * 2 + 5);
+                }
+
+                int pixelIndex = (screen_y * WINDOW_WIDTH + screen_x) * 4;
+                pixels[pixelIndex + 0] = r;
+                pixels[pixelIndex + 1] = g;
+                pixels[pixelIndex + 2] = b;
+                pixels[pixelIndex + 3] = 255;
         }
     }
 }
