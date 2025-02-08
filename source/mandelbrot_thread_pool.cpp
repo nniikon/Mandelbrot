@@ -2,7 +2,10 @@
 #include "mandelbrot_arrayed.h"
 #include "mandelbrot_config.h"
 
+extern "C" {
 #include "thread_pool.h"
+}
+
 
 TH_Pool pool;
 
