@@ -10,6 +10,10 @@
 #include "mandelbrot_arrayed.h"
 #include "mandelbrot_openmp.h"
 #include "mandelbrot_thread_pool.h"
+#ifdef GPU
+#include <cuda_runtime.h>
+#include "mandelbrot_cuda.h"
+#endif
 
 #include "mandelbrot_config.h"
 
@@ -26,15 +30,26 @@ int main(int argc, char* argv[])
 {
     sf::Uint8* pixels = (sf::Uint8*) calloc(WINDOW_WIDTH * WINDOW_HEIGHT * 4,
                                                             sizeof(sf::Uint8));
-
-    if (argc > 2) {
+    if (argc > 2)
+    {
         int nTests = 0;
         sscanf(argv[2], "%d", &nTests);
-
+#ifdef GPU
+        if (strcmp(argv[1], "cuda_no_cpy") == 0) {
+            sf::Uint8* d_pixels;
+            size_t size = WINDOW_WIDTH * WINDOW_HEIGHT * 4 * sizeof(sf::Uint8);
+            cudaMalloc(&d_pixels, size);
+            test_implementation(d_pixels, mandelbrot_cuda_no_cpy, "cuda no cpy", nTests);
+            cudaMemcpy(pixels, d_pixels, size, cudaMemcpyDeviceToHost);
+            cudaFree(d_pixels);
+        }
+        else if (strcmp(argv[1], "cuda"       ) == 0) test_implementation(pixels, mandelbrot_cuda,        "cuda",        nTests);
+        else
+#endif
         if      (strcmp(argv[1], "naive"      ) == 0) test_implementation(pixels, mandelbrot_naive,       "naive",       nTests);
         else if (strcmp(argv[1], "vectorized" ) == 0) test_implementation(pixels, mandelbrot_vectorized,  "vectorized",  nTests);
         else if (strcmp(argv[1], "arrayed"    ) == 0) test_implementation(pixels, mandelbrot_arrayed,     "arrayed",     nTests);
-        else if (strcmp(argv[1], "openmp"     ) == 0) test_implementation(pixels, mandelbrot_openmp,      "openmp",     nTests);
+        else if (strcmp(argv[1], "openmp"     ) == 0) test_implementation(pixels, mandelbrot_openmp,      "openmp",      nTests);
         else if (strcmp(argv[1], "thread-pool") == 0) test_implementation(pixels, mandelbrot_thread_pool, "thread-pool", nTests);
         else assert(0 && "Unknown implementation");
 
@@ -79,7 +94,8 @@ int main(int argc, char* argv[])
             }    
         }
 
-        mandelbrot_openmp(pixels, scale, shiftX);
+        mandelbrot_cuda(pixels, scale, shiftX);
+
         texture.update(pixels);
 
         window.clear();
