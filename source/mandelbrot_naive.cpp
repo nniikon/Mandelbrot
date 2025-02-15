@@ -1,31 +1,26 @@
 #include "mandelbrot_naive.h"
 #include "mandelbrot_config.h"
-#include "mandelbrot_color.h"
 
 void mandelbrot_naive(sf::Uint8* pixels, float magnifier, float shiftX) 
 {
-    // centering parameters
-    shiftX -= 0.5f;
-    magnifier -= 0.3f;
-
-    const float MAX_RADIUS_2 = MAX_RADIUS * MAX_RADIUS;
-    const float ASPECT_RATIO = (float)(WINDOW_WIDTH) / WINDOW_HEIGHT;
+    shiftX    += SHIFT_X_OFFSET;
+    magnifier += MAGNIFIER_OFFSET;
 
     const float inv_magnifier = 1.0f / magnifier;
-    const float colorScale = 255.0f / MAX_ITERATION_DEPTH;
+    const float COLOR_SCALE = 255.0f / MAX_ITERATION_DEPTH;
 
     const float pixel_step_x = ASPECT_RATIO * inv_magnifier * (2.0f / WINDOW_WIDTH);
     const float pixel_step_y = inv_magnifier                * (2.0f / WINDOW_HEIGHT);
 
-    float current_y_coord = -1.0f * inv_magnifier;
+    float c_y = -1.0f * inv_magnifier;
 
     for (int screen_y = 0; screen_y < WINDOW_HEIGHT; screen_y++,
-                                                     current_y_coord += pixel_step_y) 
+                                                     c_y += pixel_step_y) 
     {
-        float current_x_coord = shiftX - ASPECT_RATIO * inv_magnifier;
+        float c_x = shiftX - ASPECT_RATIO * inv_magnifier;
 
-        for (int screen_x = 0; screen_x < WINDOW_WIDTH; ++screen_x, 
-                                                        current_x_coord += pixel_step_x) 
+        for (int screen_x = 0; screen_x < WINDOW_WIDTH; screen_x++, 
+                                                        c_x += pixel_step_x) 
         {
             int iterations = 0;
 
@@ -37,8 +32,8 @@ void mandelbrot_naive(sf::Uint8* pixels, float magnifier, float shiftX)
             while (z_x2 + z_y2 < MAX_RADIUS_2 &&
                    iterations < MAX_ITERATION_DEPTH) 
             {
-                z_y = 2 * z_x * z_y + current_y_coord;
-                z_x = z_x2 - z_y2 + current_x_coord;
+                z_y = 2 * z_x * z_y + c_y;
+                z_x = z_x2 - z_y2 + c_x;
 
                 z_x2 = z_x * z_x;
                 z_y2 = z_y * z_y;
@@ -51,7 +46,7 @@ void mandelbrot_naive(sf::Uint8* pixels, float magnifier, float shiftX)
                 sf::Uint8 b = 0;
                 if (iterations < MAX_ITERATION_DEPTH)
                 {
-                    float iterNormalized = iterations * colorScale;
+                    float iterNormalized = iterations * COLOR_SCALE;
                     r = (sf::Uint8)(iterNormalized / 2);
                     g = (sf::Uint8)(iterNormalized * 2 + 2);
                     b = (sf::Uint8)(iterNormalized * 2 + 5);
@@ -65,54 +60,3 @@ void mandelbrot_naive(sf::Uint8* pixels, float magnifier, float shiftX)
         }
     }
 }
-
-#if SIMPLIFIED
-
-void mandelbrot_naive(sf::Uint8* pixels, float magnifier, float shiftX) 
-{
-    const float MAX_RADIUS_2 = MAX_RADIUS * MAX_RADIUS;
-
-    const float pixel_step_x = (2.0f / WINDOW_WIDTH);
-    const float pixel_step_y = (2.0f / WINDOW_HEIGHT);
-
-    float current_y_coord = -1.0f;
-
-    for (int screen_y = 0; screen_y < WINDOW_HEIGHT; screen_y++,
-                                                     current_y_coord += pixel_step_y) 
-    {
-        float current_x_coord = -1.0f;
-
-        for (int screen_x = 0; screen_x < WINDOW_WIDTH; ++screen_x, 
-                                                        current_x_coord += pixel_step_x) 
-        {
-            int iterations = 0;
-
-            float z_x  = 0.0f;
-            float z_y  = 0.0f;
-            float z_x2 = 0.0f;
-            float z_y2 = 0.0f;
-
-            while (z_x2 + z_y2 < MAX_RADIUS_2 &&
-                   iterations < MAX_ITERATION_DEPTH) 
-            {
-                z_y = 2 * z_x * z_y + current_y_coord;
-                z_x = z_x2 - z_y2 + current_x_coord;
-
-                z_x2 = z_x * z_x;
-                z_y2 = z_y * z_y;
-
-                ++iterations;
-            }
-
-            sf::Color pixel_color = get_color(iterations, MAX_ITERATION_DEPTH);
-            const int pixel_index = (screen_y * WINDOW_WIDTH + screen_x) * 4;
-            
-            pixels[pixel_index + 0] = pixel_color.r;
-            pixels[pixel_index + 1] = pixel_color.g;
-            pixels[pixel_index + 2] = pixel_color.b;
-            pixels[pixel_index + 3] = 255u;
-        }
-    }
-}
-
-#endif

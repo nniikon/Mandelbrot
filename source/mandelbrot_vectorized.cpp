@@ -1,4 +1,3 @@
-#include "mandelbrot_color.h"
 #include "mandelbrot_vectorized.h"
 #include "mandelbrot_config.h"
 
@@ -12,16 +11,13 @@ void mandelbrot_vectorized(sf::Uint8* pixels, float magnifier, float shiftX)
 void mandelbrot_vectorized_ranged(sf::Uint8* pixels, float magnifier, float shiftX,
                                   int y_from, int y_to)
 {
-    const float MAX_RADUIS_2 = MAX_RADIUS * MAX_RADIUS;
-    const float scale = (float)WINDOW_WIDTH / WINDOW_HEIGHT;
-
-    shiftX -= 0.5f;
-    magnifier -= 0.3;
+    shiftX    += SHIFT_X_OFFSET;
+    magnifier += MAGNIFIER_OFFSET;
 
     const float invMagnifier = 1.0f / magnifier;
-    const float colorScale = 255.0f / MAX_ITERATION_DEPTH;
+    const float COLOR_SCALE = 255.0f / MAX_ITERATION_DEPTH;
 
-    const float c_step_x = scale * invMagnifier * (2.0f / WINDOW_WIDTH);
+    const float c_step_x = ASPECT_RATIO * invMagnifier * (2.0f / WINDOW_WIDTH);
     const float c_step_y = invMagnifier * (2.0f / WINDOW_HEIGHT);
 
     __m256 _01234567 = _mm256_set_ps(7.0f, 6.0f, 5.0f, 4.0f,
@@ -30,13 +26,13 @@ void mandelbrot_vectorized_ranged(sf::Uint8* pixels, float magnifier, float shif
     __m256   _c_step_x = _mm256_set1_ps(c_step_x);
     __m256   _c_step_y = _mm256_set1_ps(c_step_y);
 
-    __m256 _maxRadius2 = _mm256_set1_ps(MAX_RADUIS_2);
+    __m256 _maxRadius2 = _mm256_set1_ps(MAX_RADIUS_2);
 
     float c_y = -1.0f * invMagnifier + c_step_y * y_from;
     __m256 _c_y = _mm256_set1_ps(c_y);
     for (int screenY = y_from; screenY < y_to; ++screenY, c_y += c_step_y)
     {
-        float c_x = shiftX - scale * invMagnifier;
+        float c_x = shiftX - ASPECT_RATIO * invMagnifier;
         __m256 _c_x = _mm256_set1_ps(c_x);
 
         // _cx + ( 7dx, 6dx, 5dx, 4dx, 3dx, 2dx, 1dx, 0 )
@@ -89,7 +85,7 @@ void mandelbrot_vectorized_ranged(sf::Uint8* pixels, float magnifier, float shif
                 sf::Uint8 b = 0;
                 if (iterationsArray[i] < MAX_ITERATION_DEPTH)
                 {
-                    float iterNormalized = iterationsArray[i] * colorScale;
+                    float iterNormalized = iterationsArray[i] * COLOR_SCALE;
                     r = (sf::Uint8)(iterNormalized / 2);
                     g = (sf::Uint8)(iterNormalized * 2 + 2);
                     b = (sf::Uint8)(iterNormalized * 2 + 5);

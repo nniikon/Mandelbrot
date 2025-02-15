@@ -10,16 +10,13 @@ const int VEC_SIZE = 8;
 
 void mandelbrot_openmp(sf::Uint8* pixels, float magnifier, float shiftX)
 {
-    const float MAX_RADIUS_2 = MAX_RADIUS * MAX_RADIUS;
-    const float scale = (float)(WINDOW_WIDTH) / WINDOW_HEIGHT;
-
-    shiftX -= 0.5f;
-    magnifier -= 0.3f;
+    shiftX    += SHIFT_X_OFFSET;
+    magnifier += MAGNIFIER_OFFSET;
 
     const float invMagnifier = 1.0f / magnifier;
-    const float colorScale = 255.0f / MAX_ITERATION_DEPTH;
+    const float COLOR_SCALE = 255.0f / MAX_ITERATION_DEPTH;
 
-    const float c_step_x = scale * invMagnifier * (2.0f / WINDOW_WIDTH);
+    const float c_step_x = ASPECT_RATIO * invMagnifier * (2.0f / WINDOW_WIDTH);
     const float c_step_y = invMagnifier * (2.0f / WINDOW_HEIGHT);
 
     const float vec_c_step_x = c_step_x * VEC_SIZE;
@@ -31,7 +28,7 @@ void mandelbrot_openmp(sf::Uint8* pixels, float magnifier, float shiftX)
 
         ALIGN float _c_x[VEC_SIZE];
 
-        const float c_x = shiftX - scale * invMagnifier;
+        const float c_x = shiftX - ASPECT_RATIO * invMagnifier;
         FOR_VEC _c_x[i] = c_x + c_step_x * i;
 
         for (int screenX = 0; screenX < WINDOW_WIDTH; screenX += VEC_SIZE) 
@@ -82,7 +79,7 @@ void mandelbrot_openmp(sf::Uint8* pixels, float magnifier, float shiftX)
                 sf::Uint8 b = 0;
                 if (_iterations[i] < MAX_ITERATION_DEPTH)
                 {
-                    float iterNormalized = _iterations[i] * colorScale;
+                    float iterNormalized = _iterations[i] * COLOR_SCALE;
                     r = (sf::Uint8)(iterNormalized / 2);
                     g = (sf::Uint8)(iterNormalized * 2 + 2);
                     b = (sf::Uint8)(iterNormalized * 2 + 5);
@@ -98,5 +95,4 @@ void mandelbrot_openmp(sf::Uint8* pixels, float magnifier, float shiftX)
             FOR_VEC _c_x[i] += vec_c_step_x;
         }
     }
-
 }
