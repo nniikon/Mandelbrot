@@ -30,7 +30,7 @@ int main(int argc, char* argv[])
 {
     sf::Uint8* pixels = (sf::Uint8*) calloc(WINDOW_WIDTH * WINDOW_HEIGHT * 4,
                                                             sizeof(sf::Uint8));
-    if (argc > 2)
+    if (argc == 3)
     {
         int nTests = 0;
         sscanf(argv[2], "%d", &nTests);
@@ -94,7 +94,24 @@ int main(int argc, char* argv[])
             }    
         }
 
-        mandelbrot_cuda(pixels, scale, shiftX);
+#ifdef GPU
+        if (strcmp(argv[1], "cuda_no_cpy") == 0) {
+            sf::Uint8* d_pixels;
+            size_t size = WINDOW_WIDTH * WINDOW_HEIGHT * 4 * sizeof(sf::Uint8);
+            cudaMalloc(&d_pixels, size);
+            mandelbrot_cuda_no_cpy(d_pixels, scale, shiftX);
+            cudaMemcpy(pixels, d_pixels, size, cudaMemcpyDeviceToHost);
+            cudaFree(d_pixels);
+        }
+        else if (strcmp(argv[1], "cuda"       ) == 0) mandelbrot_cuda(pixels, scale, shiftX);
+        else
+#endif
+        if      (strcmp(argv[1], "naive"      ) == 0) mandelbrot_naive(pixels, scale, shiftX);
+        else if (strcmp(argv[1], "vectorized" ) == 0) mandelbrot_vectorized(pixels, scale, shiftX);
+        else if (strcmp(argv[1], "arrayed"    ) == 0) mandelbrot_arrayed(pixels, scale, shiftX);
+        else if (strcmp(argv[1], "openmp"     ) == 0) mandelbrot_openmp(pixels, scale, shiftX);
+        else if (strcmp(argv[1], "thread-pool") == 0) mandelbrot_thread_pool(pixels, scale, shiftX);
+        else assert(0 && "Unknown implementation");
 
         texture.update(pixels);
 
